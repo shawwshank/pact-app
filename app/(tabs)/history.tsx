@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '@/constants/theme';
 
 type CheckinDay = { date: string; done: number; total: number };
@@ -22,10 +23,10 @@ export default function HistoryScreen() {
   const [days, setDays] = useState<CheckinDay[]>([]);
   const [totalStreak, setTotalStreak] = useState(0);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!user) return;
     loadHistory();
-  }, [user]);
+  }, [user]));
 
   async function loadHistory() {
     if (!user) return;

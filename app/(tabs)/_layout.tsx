@@ -33,10 +33,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="leaderboard"
+        name="groups"
         options={{
-          title: 'Board',
-          tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
+          title: 'Groups',
+          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
         }}
       />
       <Tabs.Screen

@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '@/constants/theme';
 
 type Goal = { id: string; title: string; frequency: string; groupId: string };
@@ -11,6 +12,7 @@ type Group = { id: string; name: string; memberIds: string[] };
 type Checkin = { userId: string; goalId: string; groupId: string; date: string; completed: boolean };
 type CheckinMap = Record<string, boolean>;
 type Nudge = { fromUserId: string; toUserId: string; fromName: string; date: string };
+type Challenge = { id: string; groupId: string; title: string; target: number; unit: string; current: number; perCheckin: number; contributions: Record<string, number> };
 
 function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -42,13 +44,15 @@ export default function HomeScreen() {
   const [streak, setStreak] = useState(0);
   const [nudgesReceived, setNudgesReceived] = useState<Nudge[]>([]);
   const [nudgesSent, setNudgesSent] = useState<Set<string>>(new Set());
+  const [challenges, setChallenges] = useState<Record<string, Challenge>>({});
+  const [showContrib, setShowContrib] = useState<{ goalId: string; groupId: string } | null>(null);
   const weekDates = getWeekDates();
   const today = localDateStr(new Date());
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!user) return;
     loadData();
-  }, [user]);
+  }, [user]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -109,6 +113,15 @@ export default function HomeScreen() {
     const nq = query(collection(db(), 'nudges'), where('toUserId', '==', user.uid), where('date', '==', today));
     const nSnap = await getDocs(nq);
     setNudgesReceived(nSnap.docs.map(d => d.data() as Nudge));
+
+    // Load active challenges
+    const cMap: Record<string, Challenge> = {};
+    for (const group of g) {
+      const cq2 = query(collection(db(), 'challenges'), where('groupId', '==', group.id), where('isActive', '==', true));
+      const cSnap2 = await getDocs(cq2);
+      if (!cSnap2.empty) cMap[group.id] = { id: cSnap2.docs[0].id, ...cSnap2.docs[0].data() } as Challenge;
+    }
+    setChallenges(cMap);
   }
 
   async function sendNudge(toUserId: string) {
@@ -132,11 +145,29 @@ export default function HomeScreen() {
       completed, source: 'manual', updatedAt: new Date(),
     }, { merge: true });
     setMyCheckins(prev => ({ ...prev, [goalId]: completed }));
-    // Update local checkins for grid
     setCheckins(prev => {
       const filtered = prev.filter(c => !(c.userId === user.uid && c.goalId === goalId && c.date === today));
       return [...filtered, { userId: user.uid, goalId, groupId, date: today, completed }];
     });
+    // If completed and group has a challenge, show contribution prompt
+    if (completed && challenges[groupId]) {
+      setShowContrib({ goalId, groupId });
+    }
+  }
+
+  async function logContribution(amount: number) {
+    if (!user || !showContrib) return;
+    const challenge = challenges[showContrib.groupId];
+    if (!challenge) return;
+    const { updateDoc: updateD } = await import('firebase/firestore');
+    const newCurrent = challenge.current + amount;
+    const newContributions = { ...challenge.contributions, [user.uid]: (challenge.contributions[user.uid] || 0) + amount };
+    await updateD(doc(db(), 'challenges', challenge.id), { current: newCurrent, contributions: newContributions });
+    setChallenges(prev => ({
+      ...prev,
+      [showContrib.groupId]: { ...challenge, current: newCurrent, contributions: newContributions },
+    }));
+    setShowContrib(null);
   }
 
   function getMemberStatus(memberId: string, date: string, groupId: string): '✓' | '✗' | '·' {
@@ -147,6 +178,19 @@ export default function HomeScreen() {
 
   const allDoneToday = goals.length > 0 && goals.every(g => myCheckins[g.id] === true);
   const checkedInCount = goals.filter(g => myCheckins[g.id] !== undefined).length;
+
+  const firstName = user?.displayName?.split(' ')[0] || 'there';
+  const hour = new Date().getHours();
+  let greeting: string;
+  if (allDoneToday) {
+    greeting = `All done today, ${firstName} 🔥`;
+  } else if (goals.length === 0) {
+    greeting = `Hey ${firstName}`;
+  } else if (hour >= 20 && checkedInCount < goals.length) {
+    greeting = `${firstName}, don't break your streak`;
+  } else {
+    greeting = `Hey ${firstName} — ${goals.length - checkedInCount} goal${goals.length - checkedInCount !== 1 ? 's' : ''} left`;
+  }
 
   if (groups.length === 0) {
     return (
@@ -172,6 +216,9 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
     >
+      {/* Greeting */}
+      <Text style={styles.greeting}>{greeting}</Text>
+
       {/* Nudge received banner */}
       {nudgesReceived.length > 0 && (
         <View style={styles.nudgeBanner}>
@@ -215,10 +262,38 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {/* Contribution Prompt */}
+      {showContrib && challenges[showContrib.groupId] && (
+        <View style={styles.contribPrompt}>
+          <Text style={styles.contribTitle}>Log contribution</Text>
+          <Text style={styles.contribSub}>How much to add to "{challenges[showContrib.groupId].title}"?</Text>
+          <View style={styles.contribBtns}>
+            {[0.5, 1, 1.5, 2].map(amt => (
+              <TouchableOpacity key={amt} style={styles.contribBtn} onPress={() => logContribution(amt)}>
+                <Text style={styles.contribBtnText}>{amt} {challenges[showContrib.groupId].unit}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => { logContribution(challenges[showContrib.groupId].perCheckin); }}>
+            <Text style={styles.contribSkip}>Use default ({challenges[showContrib.groupId].perCheckin} {challenges[showContrib.groupId].unit})</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Group Grids */}
       {groups.map(group => (
         <View key={group.id} style={styles.groupCard}>
-          <Text style={styles.groupName}>{group.name}</Text>
+          <TouchableOpacity onPress={() => router.push(`/group/${group.id}`)}>
+            <Text style={styles.groupName}>{group.name}</Text>
+          </TouchableOpacity>
+          {challenges[group.id] && (
+            <View style={styles.compactChallenge}>
+              <Text style={styles.compactChallengeText}>🎯 {challenges[group.id].current}/{challenges[group.id].target} {challenges[group.id].unit}</Text>
+              <View style={styles.compactBar}>
+                <View style={[styles.compactBarFill, { width: `${Math.min((challenges[group.id].current / challenges[group.id].target) * 100, 100)}%` }]} />
+              </View>
+            </View>
+          )}
           <View style={styles.table}>
             <View style={styles.tableRow}>
               <View style={styles.nameCol} />
@@ -273,6 +348,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: theme.spacing.lg },
+  greeting: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text, marginBottom: theme.spacing.lg },
   // Check-in section
   checkinSection: {
     backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
@@ -340,4 +416,21 @@ const styles = StyleSheet.create({
   nudgeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
   nudgeBtnText: { fontSize: 14 },
   nudgedLabel: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginLeft: 4 },
+  // Contribution prompt
+  contribPrompt: {
+    backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg, marginBottom: theme.spacing.lg,
+    borderWidth: 1, borderColor: theme.colors.accent + '40',
+  },
+  contribTitle: { fontSize: theme.font.size.md, fontWeight: theme.font.weight.bold, color: theme.colors.text },
+  contribSub: { fontSize: theme.font.size.sm, color: theme.colors.textSecondary, marginTop: theme.spacing.xs, marginBottom: theme.spacing.md },
+  contribBtns: { flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  contribBtn: { backgroundColor: theme.colors.accent, borderRadius: theme.radius.md, paddingVertical: theme.spacing.sm, paddingHorizontal: theme.spacing.md },
+  contribBtnText: { color: '#fff', fontSize: theme.font.size.sm, fontWeight: theme.font.weight.medium },
+  contribSkip: { color: theme.colors.textMuted, fontSize: theme.font.size.sm, marginTop: theme.spacing.md, textAlign: 'center' },
+  // Compact challenge
+  compactChallenge: { marginBottom: theme.spacing.sm },
+  compactChallengeText: { fontSize: theme.font.size.xs, color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
+  compactBar: { height: 4, backgroundColor: theme.colors.cardBorder, borderRadius: 2, overflow: 'hidden' },
+  compactBarFill: { height: '100%', backgroundColor: theme.colors.success, borderRadius: 2 },
 });
