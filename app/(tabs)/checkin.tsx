@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
+import { theme } from '@/constants/theme';
 
 type Goal = { id: string; title: string; frequency: string; groupId: string };
 type CheckinMap = Record<string, boolean>;
@@ -30,7 +31,6 @@ export default function CheckInScreen() {
     const g = snap.docs.map(d => ({ id: d.id, ...d.data() } as Goal));
     setGoals(g);
 
-    // Load today's check-ins
     const cq = query(
       collection(db(), 'checkins'),
       where('userId', '==', user.uid),
@@ -60,33 +60,53 @@ export default function CheckInScreen() {
     setCheckins(prev => ({ ...prev, [goalId]: completed }));
   }
 
+  const allDone = goals.length > 0 && goals.every(g => checkins[g.id] === true);
+
   if (goals.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>No goals yet.</Text>
-        <Text style={styles.emptySubtext}>Create a group and add goals from the Profile tab.</Text>
+      <View style={styles.container}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>🎯</Text>
+          <Text style={styles.emptyTitle}>No goals yet</Text>
+          <Text style={styles.emptySub}>Add goals from the Profile tab to start tracking</Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.date}>
+        {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+      </Text>
+
+      {allDone && (
+        <View style={styles.successBanner}>
+          <Text style={styles.successText}>All done today! 🎉</Text>
+        </View>
+      )}
+
       {goals.map(goal => {
         const done = checkins[goal.id] === true;
+        const missed = checkins[goal.id] === false;
         return (
           <View key={goal.id} style={styles.card}>
             <Text style={styles.goalTitle}>{goal.title}</Text>
-            <View style={styles.row}>
+            <Text style={styles.goalFreq}>{goal.frequency}</Text>
+            <View style={styles.btnRow}>
               <TouchableOpacity
                 style={[styles.btn, done && styles.btnDone]}
-                onPress={() => toggleCheckin(goal.id, true)}>
-                <Text style={[styles.btnText, done && styles.btnTextDone]}>✓ Done</Text>
+                onPress={() => toggleCheckin(goal.id, true)}
+                activeOpacity={0.7}>
+                <Text style={[styles.btnIcon, done && styles.btnIconActive]}>✓</Text>
+                <Text style={[styles.btnLabel, done && styles.btnLabelActive]}>Done</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.btn, checkins[goal.id] === false && styles.btnMissed]}
-                onPress={() => toggleCheckin(goal.id, false)}>
-                <Text style={[styles.btnText, checkins[goal.id] === false && styles.btnTextDone]}>✗ Missed</Text>
+                style={[styles.btn, missed && styles.btnMissed]}
+                onPress={() => toggleCheckin(goal.id, false)}
+                activeOpacity={0.7}>
+                <Text style={[styles.btnIcon, missed && styles.btnIconActive]}>✗</Text>
+                <Text style={[styles.btnLabel, missed && styles.btnLabelActive]}>Missed</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -97,22 +117,48 @@ export default function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingTop: 16 },
-  date: { fontSize: 18, fontWeight: '600', marginBottom: 20 },
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  content: { padding: theme.spacing.lg, paddingTop: theme.spacing.md },
+  date: {
+    fontSize: theme.font.size.lg, fontWeight: theme.font.weight.semibold,
+    color: theme.colors.text, marginBottom: theme.spacing.lg,
+  },
+  successBanner: {
+    backgroundColor: theme.colors.success + '15',
+    borderRadius: theme.radius.md, padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg, alignItems: 'center',
+    borderWidth: 1, borderColor: theme.colors.success + '30',
+  },
+  successText: { color: theme.colors.success, fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold },
   card: {
-    backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 12,
+    backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg, marginBottom: theme.spacing.md,
+    borderWidth: 1, borderColor: theme.colors.cardBorder,
   },
-  goalTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
-  row: { flexDirection: 'row', gap: 12 },
+  goalTitle: {
+    fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text,
+  },
+  goalFreq: {
+    fontSize: theme.font.size.sm, color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs, marginBottom: theme.spacing.lg,
+  },
+  btnRow: { flexDirection: 'row', gap: theme.spacing.md },
   btn: {
-    flex: 1, padding: 14, borderRadius: 8, borderWidth: 1,
-    borderColor: '#ddd', alignItems: 'center',
+    flex: 1, paddingVertical: theme.spacing.lg, borderRadius: theme.radius.md,
+    borderWidth: 1.5, borderColor: theme.colors.cardBorder,
+    alignItems: 'center', justifyContent: 'center',
   },
-  btnDone: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  btnMissed: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
-  btnText: { fontSize: 16, fontWeight: '600' },
-  btnTextDone: { color: '#fff' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { fontSize: 20, fontWeight: '600' },
-  emptySubtext: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
+  btnDone: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  btnMissed: { backgroundColor: theme.colors.danger, borderColor: theme.colors.danger },
+  btnIcon: { fontSize: 28, color: theme.colors.textSecondary },
+  btnIconActive: { color: '#fff' },
+  btnLabel: {
+    fontSize: theme.font.size.sm, color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs, fontWeight: theme.font.weight.medium,
+  },
+  btnLabelActive: { color: '#fff' },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },
+  emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
+  emptyTitle: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text },
+  emptySub: { fontSize: theme.font.size.md, color: theme.colors.textSecondary, marginTop: theme.spacing.sm, textAlign: 'center' },
 });

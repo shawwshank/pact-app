@@ -4,6 +4,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
+import { theme } from '@/constants/theme';
 
 type Group = { id: string; name: string; memberIds: string[] };
 type Checkin = { userId: string; goalId: string; groupId: string; date: string; completed: boolean };
@@ -41,7 +42,6 @@ export default function HomeScreen() {
 
   async function loadData() {
     if (!user) return;
-    // Load groups user is in
     const gq = query(collection(db(), 'groups'), where('memberIds', 'array-contains', user.uid));
     const gSnap = await getDocs(gq);
     const g = gSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
@@ -49,11 +49,10 @@ export default function HomeScreen() {
 
     if (g.length === 0) return;
 
-    // Load check-ins for this week for all group members
     const allMemberIds = [...new Set(g.flatMap(gr => gr.memberIds))];
     const cq = query(
       collection(db(), 'checkins'),
-      where('userId', 'in', allMemberIds.slice(0, 10)), // Firestore 'in' limit is 10
+      where('userId', 'in', allMemberIds.slice(0, 10)),
       where('date', '>=', weekDates[0]),
       where('date', '<=', weekDates[6]),
     );
@@ -71,68 +70,100 @@ export default function HomeScreen() {
 
   if (groups.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>No groups yet</Text>
-        <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/group/create')}>
-          <Text style={styles.createBtnText}>Create a Group</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>👥</Text>
+          <Text style={styles.emptyTitle}>No groups yet</Text>
+          <Text style={styles.emptySub}>Create a group and invite your friends</Text>
+          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/group/create')}>
+            <Text style={styles.createBtnText}>Create a Group</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {groups.map(group => (
         <View key={group.id} style={styles.groupCard}>
           <Text style={styles.groupName}>{group.name}</Text>
-          {/* Header row */}
-          <View style={styles.tableRow}>
-            <Text style={styles.nameCol}></Text>
-            {DAY_LABELS.map((d, i) => (
-              <Text key={i} style={[styles.dayCol, weekDates[i] === today && styles.today]}>{d}</Text>
+          <View style={styles.table}>
+            {/* Header */}
+            <View style={styles.tableRow}>
+              <View style={styles.nameCol} />
+              {DAY_LABELS.map((d, i) => (
+                <View key={i} style={styles.dayCol}>
+                  <Text style={[styles.dayLabel, weekDates[i] === today && styles.dayLabelToday]}>{d}</Text>
+                </View>
+              ))}
+            </View>
+            {/* Members */}
+            {group.memberIds.map(memberId => (
+              <View key={memberId} style={styles.tableRow}>
+                <View style={styles.nameCol}>
+                  <Text style={styles.memberName} numberOfLines={1}>
+                    {memberId === user?.uid ? 'You' : memberId.slice(0, 5)}
+                  </Text>
+                </View>
+                {weekDates.map((date, i) => {
+                  const status = getMemberStatus(memberId, date, group.id);
+                  return (
+                    <View key={i} style={styles.dayCol}>
+                      <View style={[
+                        styles.dot,
+                        status === '✓' && styles.dotDone,
+                        status === '✗' && styles.dotMissed,
+                      ]}>
+                        {status !== '·' && (
+                          <Text style={styles.dotText}>{status}</Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
             ))}
           </View>
-          {/* Member rows */}
-          {group.memberIds.map(memberId => (
-            <View key={memberId} style={styles.tableRow}>
-              <Text style={styles.nameCol} numberOfLines={1}>
-                {memberId === user?.uid ? 'You' : memberId.slice(0, 6)}
-              </Text>
-              {weekDates.map((date, i) => {
-                const status = getMemberStatus(memberId, date, group.id);
-                return (
-                  <Text key={i} style={[
-                    styles.dayCol,
-                    status === '✓' && styles.done,
-                    status === '✗' && styles.missed,
-                  ]}>{status}</Text>
-                );
-              })}
-            </View>
-          ))}
         </View>
       ))}
-      <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/group/create')}>
-        <Text style={styles.addBtnText}>+ New Group</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
-  groupCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 16 },
-  groupName: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  nameCol: { width: 60, fontSize: 13, color: '#333' },
-  dayCol: { flex: 1, textAlign: 'center', fontSize: 14 },
-  today: { fontWeight: 'bold' },
-  done: { color: '#22c55e', fontWeight: 'bold' },
-  missed: { color: '#ef4444', fontWeight: 'bold' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { fontSize: 20, fontWeight: '600', marginBottom: 16 },
-  createBtn: { backgroundColor: '#000', borderRadius: 8, padding: 16, paddingHorizontal: 32 },
-  createBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  addBtn: { alignItems: 'center', padding: 12 },
-  addBtnText: { fontSize: 16, color: '#666' },
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  content: { padding: theme.spacing.lg },
+  groupCard: {
+    backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg, marginBottom: theme.spacing.md,
+    borderWidth: 1, borderColor: theme.colors.cardBorder,
+  },
+  groupName: {
+    fontSize: theme.font.size.lg, fontWeight: theme.font.weight.bold,
+    color: theme.colors.text, marginBottom: theme.spacing.md,
+  },
+  table: { gap: theme.spacing.sm },
+  tableRow: { flexDirection: 'row', alignItems: 'center' },
+  nameCol: { width: 50 },
+  memberName: { fontSize: theme.font.size.xs, color: theme.colors.textSecondary },
+  dayCol: { flex: 1, alignItems: 'center' },
+  dayLabel: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, fontWeight: theme.font.weight.medium },
+  dayLabelToday: { color: theme.colors.accent, fontWeight: theme.font.weight.bold },
+  dot: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: theme.colors.cardBorder, alignItems: 'center', justifyContent: 'center',
+  },
+  dotDone: { backgroundColor: theme.colors.success },
+  dotMissed: { backgroundColor: theme.colors.danger },
+  dotText: { color: '#fff', fontSize: 12, fontWeight: theme.font.weight.bold },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },
+  emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
+  emptyTitle: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text },
+  emptySub: { fontSize: theme.font.size.md, color: theme.colors.textSecondary, marginTop: theme.spacing.sm },
+  createBtn: {
+    backgroundColor: theme.colors.accent, borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md, paddingHorizontal: theme.spacing.xl, marginTop: theme.spacing.lg,
+  },
+  createBtnText: { color: '#fff', fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold },
 });

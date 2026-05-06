@@ -5,9 +5,10 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
 import { calculateStreak } from '@/lib/streaks';
+import { theme } from '@/constants/theme';
 
 type Goal = { id: string; title: string; frequency: string; groupId: string };
-type Group = { id: string; name: string; memberIds: string[] };
+type Group = { id: string; name: string; memberIds: string[]; inviteCode: string };
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -32,7 +33,6 @@ export default function ProfileScreen() {
     const g = goalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Goal));
     setGoals(g);
 
-    // Calculate streaks
     const s: Record<string, number> = {};
     for (const goal of g) {
       s[goal.id] = await calculateStreak(user.uid, goal.id);
@@ -41,29 +41,38 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.name}>{user?.email}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Text style={styles.email}>{user?.email}</Text>
+      </View>
 
-      <Text style={styles.section}>My Groups</Text>
+      <Text style={styles.section}>Groups</Text>
       {groups.map(g => (
         <View key={g.id} style={styles.card}>
-          <Text style={styles.cardTitle}>{g.name}</Text>
-          <Text style={styles.cardSub}>{g.memberIds.length} members</Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>{g.name}</Text>
+            <Text style={styles.badge}>{g.memberIds.length} 👤</Text>
+          </View>
           {goals.filter(goal => goal.groupId === g.id).map(goal => (
-            <Text key={goal.id} style={styles.goalItem}>
-              • {goal.title} ({goal.frequency}) · 🔥 {streaks[goal.id] ?? 0}
-            </Text>
+            <View key={goal.id} style={styles.goalRow}>
+              <Text style={styles.goalTitle}>{goal.title}</Text>
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakText}>🔥 {streaks[goal.id] ?? 0}</Text>
+              </View>
+            </View>
           ))}
-          <TouchableOpacity onPress={() => router.push(`/group/add-goal?groupId=${g.id}`)}>
-            <Text style={styles.link}>+ Add Goal</Text>
+          <TouchableOpacity style={styles.addGoalBtn} onPress={() => router.push(`/group/add-goal?groupId=${g.id}`)}>
+            <Text style={styles.addGoalText}>+ Add Goal</Text>
           </TouchableOpacity>
+          <Text style={styles.inviteCode}>Invite: {g.inviteCode}</Text>
         </View>
       ))}
+
       <TouchableOpacity style={styles.outlineBtn} onPress={() => router.push('/group/create')}>
         <Text style={styles.outlineBtnText}>+ Create Group</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.signOut} onPress={() => signOut()}>
+      <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut()}>
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -71,19 +80,41 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24 },
-  name: { fontSize: 20, fontWeight: 'bold', marginBottom: 24 },
-  section: { fontSize: 16, fontWeight: '600', color: '#666', marginTop: 24, marginBottom: 12 },
-  card: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '600' },
-  cardSub: { fontSize: 14, color: '#666', marginTop: 4 },
-  link: { color: '#2563eb', marginTop: 8, fontWeight: '500' },
-  goalItem: { fontSize: 14, color: '#333', marginTop: 6 },
-  outlineBtn: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
-    padding: 14, alignItems: 'center', marginTop: 8,
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  content: { padding: theme.spacing.lg },
+  header: { marginBottom: theme.spacing.lg },
+  email: { fontSize: theme.font.size.md, color: theme.colors.textSecondary },
+  section: {
+    fontSize: theme.font.size.sm, fontWeight: theme.font.weight.semibold,
+    color: theme.colors.textMuted, textTransform: 'uppercase',
+    letterSpacing: 1, marginBottom: theme.spacing.md,
   },
-  outlineBtnText: { fontSize: 16, color: '#666' },
-  signOut: { marginTop: 40, alignItems: 'center', padding: 16 },
-  signOutText: { color: '#ef4444', fontSize: 16 },
+  card: {
+    backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg, marginBottom: theme.spacing.md,
+    borderWidth: 1, borderColor: theme.colors.cardBorder,
+  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md },
+  cardTitle: { fontSize: theme.font.size.lg, fontWeight: theme.font.weight.bold, color: theme.colors.text },
+  badge: { fontSize: theme.font.size.sm, color: theme.colors.textSecondary },
+  goalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.cardBorder,
+  },
+  goalTitle: { fontSize: theme.font.size.md, color: theme.colors.text },
+  streakBadge: {
+    backgroundColor: theme.colors.accent + '20', borderRadius: theme.radius.full,
+    paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xs,
+  },
+  streakText: { fontSize: theme.font.size.sm, color: theme.colors.accentLight },
+  addGoalBtn: { marginTop: theme.spacing.md },
+  addGoalText: { color: theme.colors.accent, fontSize: theme.font.size.sm, fontWeight: theme.font.weight.medium },
+  inviteCode: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginTop: theme.spacing.sm },
+  outlineBtn: {
+    borderWidth: 1, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.md,
+    padding: theme.spacing.md, alignItems: 'center', marginTop: theme.spacing.sm,
+  },
+  outlineBtnText: { fontSize: theme.font.size.md, color: theme.colors.textSecondary },
+  signOutBtn: { marginTop: theme.spacing.xxl, alignItems: 'center', padding: theme.spacing.md },
+  signOutText: { color: theme.colors.danger, fontSize: theme.font.size.md },
 });
