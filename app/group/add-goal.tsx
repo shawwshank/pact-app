@@ -63,22 +63,23 @@ export default function AddGoalScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24 },
+  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#0D0D0F' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, color: '#fff' },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
+    borderWidth: 1, borderColor: '#2A2A30', borderRadius: 8,
     padding: 14, fontSize: 16, marginBottom: 16,
+    backgroundColor: '#1A1A1F', color: '#fff',
   },
   row: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   freq: {
     flex: 1, padding: 12, borderRadius: 8, borderWidth: 1,
-    borderColor: '#ddd', alignItems: 'center',
+    borderColor: '#2A2A30', alignItems: 'center',
   },
-  freqActive: { backgroundColor: '#000', borderColor: '#000' },
-  freqText: { fontSize: 16 },
+  freqActive: { backgroundColor: '#6C5CE7', borderColor: '#6C5CE7' },
+  freqText: { fontSize: 16, color: '#8E8E93' },
   freqTextActive: { fontSize: 16, color: '#fff', fontWeight: '600' },
   button: {
-    backgroundColor: '#000', borderRadius: 8, padding: 16, alignItems: 'center',
+    backgroundColor: '#6C5CE7', borderRadius: 8, padding: 16, alignItems: 'center',
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

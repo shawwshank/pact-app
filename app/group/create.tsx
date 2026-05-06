@@ -47,14 +47,15 @@ export default function CreateGroupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24 },
+  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#0D0D0F' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, color: '#fff' },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
+    borderWidth: 1, borderColor: '#2A2A30', borderRadius: 8,
     padding: 14, fontSize: 16, marginBottom: 16,
+    backgroundColor: '#1A1A1F', color: '#fff',
   },
   button: {
-    backgroundColor: '#000', borderRadius: 8, padding: 16, alignItems: 'center',
+    backgroundColor: '#6C5CE7', borderRadius: 8, padding: 16, alignItems: 'center',
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

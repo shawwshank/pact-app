@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
@@ -46,6 +46,9 @@ export default function HomeScreen() {
   const [nudgesSent, setNudgesSent] = useState<Set<string>>(new Set());
   const [challenges, setChallenges] = useState<Record<string, Challenge>>({});
   const [showContrib, setShowContrib] = useState<{ goalId: string; groupId: string } | null>(null);
+  const [reactedTo, setReactedTo] = useState<Set<string>>(new Set());
+  const [milestone, setMilestone] = useState<string | null>(null);
+  const [weeklyWinner, setWeeklyWinner] = useState<string | null>(null);
   const weekDates = getWeekDates();
   const today = localDateStr(new Date());
 
@@ -122,6 +125,32 @@ export default function HomeScreen() {
       if (!cSnap2.empty) cMap[group.id] = { id: cSnap2.docs[0].id, ...cSnap2.docs[0].data() } as Challenge;
     }
     setChallenges(cMap);
+
+    // Calculate weekly winner (last week's top performer)
+    const isMonday = new Date().getDay() === 1;
+    if (isMonday || true) { // Show winner banner early in the week
+      const lastWeekStart = new Date();
+      lastWeekStart.setDate(lastWeekStart.getDate() - 7 - ((lastWeekStart.getDay() + 6) % 7));
+      const lastWeekEnd = new Date(lastWeekStart);
+      lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+      const lwStart = `${lastWeekStart.getFullYear()}-${String(lastWeekStart.getMonth() + 1).padStart(2, '0')}-${String(lastWeekStart.getDate()).padStart(2, '0')}`;
+      const lwEnd = `${lastWeekEnd.getFullYear()}-${String(lastWeekEnd.getMonth() + 1).padStart(2, '0')}-${String(lastWeekEnd.getDate()).padStart(2, '0')}`;
+
+      const allMembers = [...new Set(g.flatMap(gr => gr.memberIds))];
+      let bestUid = '';
+      let bestRate = 0;
+      for (const uid of allMembers.slice(0, 10)) {
+        const memberCheckins = cSnap.docs.filter(d => d.data().userId === uid);
+        const done = memberCheckins.filter(d => d.data().completed).length;
+        const rate = memberCheckins.length > 0 ? done / memberCheckins.length : 0;
+        if (rate > bestRate) { bestRate = rate; bestUid = uid; }
+      }
+      if (bestUid && bestRate > 0 && bestUid !== user.uid) {
+        setWeeklyWinner(`🏆 Last week's champion: ${nameMap[bestUid] || bestUid.slice(0, 5)} (${Math.round(bestRate * 100)}%)`);
+      } else if (bestUid === user.uid && bestRate > 0) {
+        setWeeklyWinner(`🏆 You were last week's champion! (${Math.round(bestRate * 100)}%)`);
+      }
+    }
   }
 
   async function sendNudge(toUserId: string) {
@@ -134,6 +163,16 @@ export default function HomeScreen() {
       createdAt: new Date(),
     });
     setNudgesSent(prev => new Set([...prev, toUserId]));
+  }
+
+  async function sendReaction(toUserId: string, emoji: string) {
+    if (!user) return;
+    await addDoc(collection(db(), 'reactions'), {
+      fromUserId: user.uid, toUserId, emoji,
+      fromName: user.displayName || user.email?.split('@')[0] || 'Someone',
+      date: today, createdAt: new Date(),
+    });
+    setReactedTo(prev => new Set([...prev, toUserId]));
   }
 
   async function toggleCheckin(goalId: string, completed: boolean) {
@@ -152,6 +191,41 @@ export default function HomeScreen() {
     // If completed and group has a challenge, show contribution prompt
     if (completed && challenges[groupId]) {
       setShowContrib({ goalId, groupId });
+    }
+    // Check for streak milestone
+    if (completed) {
+      checkStreakMilestone(goalId);
+    }
+  }
+
+  async function checkStreakMilestone(goalId: string) {
+    if (!user) return;
+    const q = query(
+      collection(db(), 'checkins'),
+      where('userId', '==', user.uid),
+      where('goalId', '==', goalId),
+      where('completed', '==', true),
+      orderBy('date', 'desc'),
+    );
+    const snap = await getDocs(q);
+    const dates = snap.docs.map(d => d.data().date as string);
+    // Count consecutive days
+    let streak = 0;
+    const now = new Date();
+    for (let i = 0; i < dates.length; i++) {
+      const expected = new Date(now);
+      expected.setDate(now.getDate() - i);
+      const expectedStr = `${expected.getFullYear()}-${String(expected.getMonth() + 1).padStart(2, '0')}-${String(expected.getDate()).padStart(2, '0')}`;
+      if (dates.includes(expectedStr)) streak++;
+      else break;
+    }
+    const milestones = [30, 14, 7];
+    for (const m of milestones) {
+      if (streak === m) {
+        setMilestone(`🔥 ${m}-day streak! You're on fire!`);
+        setTimeout(() => setMilestone(null), 5000);
+        break;
+      }
     }
   }
 
@@ -222,6 +296,20 @@ export default function HomeScreen() {
       {/* Greeting */}
       <Text style={styles.greeting}>{greeting}</Text>
 
+      {/* Milestone celebration */}
+      {milestone && (
+        <View style={styles.milestoneBanner}>
+          <Text style={styles.milestoneText}>{milestone}</Text>
+        </View>
+      )}
+
+      {/* Weekly winner */}
+      {weeklyWinner && !milestone && (
+        <View style={styles.winnerBanner}>
+          <Text style={styles.winnerText}>{weeklyWinner}</Text>
+        </View>
+      )}
+
       {/* Nudge received banner */}
       {nudgesReceived.length > 0 && (
         <View style={styles.nudgeBanner}>
@@ -246,7 +334,10 @@ export default function HomeScreen() {
             const missed = myCheckins[goal.id] === false;
             return (
               <View key={goal.id} style={styles.goalRow}>
-                <Text style={styles.goalTitle}>{goal.title}</Text>
+                <View style={styles.goalInfo}>
+                  <Text style={styles.goalTitle}>{goal.title}</Text>
+                  <Text style={styles.goalGroup}>{groups.find(g => g.id === goal.groupId)?.name}</Text>
+                </View>
                 <View style={styles.goalBtns}>
                   <TouchableOpacity
                     style={[styles.miniBtn, done && styles.miniBtnDone]}
@@ -338,6 +429,19 @@ export default function HomeScreen() {
                 {nudgesSent.has(memberId) && memberId !== user?.uid && (
                   <Text style={styles.nudgedLabel}>sent</Text>
                 )}
+                {memberId !== user?.uid && todayStatus === '✓' && !reactedTo.has(memberId) && (
+                  <View style={styles.reactionBtns}>
+                    <TouchableOpacity onPress={() => sendReaction(memberId, '🔥')}>
+                      <Text style={styles.reactionBtn}>🔥</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => sendReaction(memberId, '👏')}>
+                      <Text style={styles.reactionBtn}>👏</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {reactedTo.has(memberId) && memberId !== user?.uid && (
+                  <Text style={styles.reactedLabel}>👍</Text>
+                )}
               </View>
               );
             })}
@@ -352,6 +456,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: theme.spacing.lg },
   greeting: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text, marginBottom: theme.spacing.lg },
+  milestoneBanner: {
+    backgroundColor: '#FF9500' + '20', borderRadius: theme.radius.md,
+    padding: theme.spacing.md, marginBottom: theme.spacing.lg, alignItems: 'center',
+    borderWidth: 1, borderColor: '#FF9500' + '40',
+  },
+  milestoneText: { color: '#FF9500', fontSize: theme.font.size.md, fontWeight: theme.font.weight.bold },
+  winnerBanner: {
+    backgroundColor: theme.colors.success + '15', borderRadius: theme.radius.md,
+    padding: theme.spacing.md, marginBottom: theme.spacing.lg, alignItems: 'center',
+    borderWidth: 1, borderColor: theme.colors.success + '30',
+  },
+  winnerText: { color: theme.colors.success, fontSize: theme.font.size.sm, fontWeight: theme.font.weight.semibold },
   // Check-in section
   checkinSection: {
     backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,
@@ -367,6 +483,8 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.cardBorder,
   },
   goalTitle: { fontSize: theme.font.size.md, color: theme.colors.text, flex: 1 },
+  goalInfo: { flex: 1 },
+  goalGroup: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginTop: 2 },
   goalBtns: { flexDirection: 'row', gap: theme.spacing.sm },
   miniBtn: {
     width: 40, height: 40, borderRadius: 20, borderWidth: 1.5,
@@ -419,6 +537,10 @@ const styles = StyleSheet.create({
   nudgeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
   nudgeBtnText: { fontSize: 14 },
   nudgedLabel: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginLeft: 4 },
+  // Reactions
+  reactionBtns: { flexDirection: 'row', marginLeft: 4, gap: 2 },
+  reactionBtn: { fontSize: 16 },
+  reactedLabel: { fontSize: 14, marginLeft: 4 },
   // Contribution prompt
   contribPrompt: {
     backgroundColor: theme.colors.card, borderRadius: theme.radius.lg,

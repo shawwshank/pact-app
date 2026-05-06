@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { registerForPushNotifications, scheduleDailyReminder } from '@/lib/notifications';
+import { theme } from '@/constants/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -64,9 +65,10 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{ headerStyle: { backgroundColor: theme.colors.bg }, headerTintColor: theme.colors.text, headerShadowVisible: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="group" options={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.bg } }} />
       </Stack>
     </ThemeProvider>
   );

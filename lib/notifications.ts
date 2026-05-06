@@ -45,4 +45,18 @@ export async function scheduleDailyReminder(hour: number = 20, minute: number = 
       minute,
     },
   });
+
+  // Monday morning weekly recap
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'New week, new pact 🏆',
+      body: 'Check who won last week and start fresh!',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 2, // Monday
+      hour: 9,
+      minute: 0,
+    },
+  });
 }

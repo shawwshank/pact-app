@@ -17,7 +17,6 @@ export default function GroupsScreen() {
   const [challenges, setChallenges] = useState<Record<string, Challenge>>({});
 
   useFocusEffect(useCallback(() => {
-    if (!user) return;
     loadData();
   }, [user]));
 
@@ -67,7 +66,10 @@ export default function GroupsScreen() {
           <TouchableOpacity key={group.id} style={styles.card} onPress={() => router.push(`/group/${group.id}`)} activeOpacity={0.7}>
             <View style={styles.cardHeader}>
               <Text style={styles.groupName}>{group.name}</Text>
-              <Text style={styles.memberCount}>{group.memberIds.length} 👤</Text>
+              <View style={styles.cardRight}>
+                <Text style={styles.memberCount}>{group.memberIds.length} 👤</Text>
+                <Text style={styles.chevron}>›</Text>
+              </View>
             </View>
             {challenge && (
               <View style={styles.challengePreview}>
@@ -100,8 +102,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.cardBorder,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   groupName: { fontSize: theme.font.size.lg, fontWeight: theme.font.weight.bold, color: theme.colors.text },
   memberCount: { fontSize: theme.font.size.sm, color: theme.colors.textSecondary },
+  chevron: { fontSize: 24, color: theme.colors.textMuted },
   challengePreview: { marginTop: theme.spacing.md },
   challengeTitle: { fontSize: theme.font.size.sm, color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
   progressBar: { height: 8, backgroundColor: theme.colors.cardBorder, borderRadius: 4, overflow: 'hidden' },

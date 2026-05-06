@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
@@ -49,21 +49,21 @@ export default function CreateChallengeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Create a Challenge</Text>
       <Text style={styles.subtitle}>Set a group goal everyone contributes to</Text>
 
       <TextInput style={styles.input} placeholder="e.g. 60 hours of working out" placeholderTextColor={theme.colors.textMuted} value={title} onChangeText={setTitle} />
 
-      <View style={styles.row}>
-        <TextInput style={[styles.input, { flex: 1 }]} placeholder="Target" placeholderTextColor={theme.colors.textMuted} value={target} onChangeText={setTarget} keyboardType="numeric" />
-        <View style={styles.unitPicker}>
-          {UNIT_OPTIONS.map(u => (
-            <TouchableOpacity key={u} style={[styles.unitBtn, unit === u && styles.unitBtnActive]} onPress={() => setUnit(u)}>
-              <Text style={[styles.unitText, unit === u && styles.unitTextActive]}>{u}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <TextInput style={styles.input} placeholder="Target (e.g. 60)" placeholderTextColor={theme.colors.textMuted} value={target} onChangeText={setTarget} keyboardType="numeric" />
+
+      <View style={styles.unitPicker}>
+        {UNIT_OPTIONS.map(u => (
+          <TouchableOpacity key={u} style={[styles.unitBtn, unit === u && styles.unitBtnActive]} onPress={() => setUnit(u)}>
+            <Text style={[styles.unitText, unit === u && styles.unitTextActive]}>{u}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <Text style={styles.label}>Per check-in contribution</Text>
@@ -76,12 +76,14 @@ export default function CreateChallengeScreen() {
       <TouchableOpacity style={styles.button} onPress={handleCreate} activeOpacity={0.8}>
         <Text style={styles.buttonText}>Create Challenge</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: theme.spacing.lg, backgroundColor: theme.colors.bg },
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  content: { padding: theme.spacing.lg, paddingTop: theme.spacing.md },
   title: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text, marginTop: theme.spacing.xl },
   subtitle: { fontSize: theme.font.size.md, color: theme.colors.textSecondary, marginTop: theme.spacing.xs, marginBottom: theme.spacing.xl },
   input: {
