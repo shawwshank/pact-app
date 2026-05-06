@@ -7,6 +7,7 @@ export default function WelcomeScreen() {
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
 
   async function handleSubmit() {
@@ -14,9 +15,13 @@ export default function WelcomeScreen() {
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
+    if (isSignUp && !displayName.trim()) {
+      Alert.alert('Error', 'Please enter your name');
+      return;
+    }
     try {
       if (isSignUp) {
-        await signUp(email, password);
+        await signUp(email, password, displayName.trim());
       } else {
         await signIn(email, password);
       }
@@ -30,6 +35,15 @@ export default function WelcomeScreen() {
       <Text style={styles.logo}>Pact</Text>
       <Text style={styles.tagline}>Keep each other honest</Text>
 
+      {isSignUp && (
+        <TextInput
+          style={styles.input}
+          placeholder="Your name"
+          placeholderTextColor={theme.colors.textMuted}
+          value={displayName}
+          onChangeText={setDisplayName}
+        />
+      )}
       <TextInput
         style={styles.input}
         placeholder="Email"

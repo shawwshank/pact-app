@@ -71,6 +71,9 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.outlineBtn} onPress={() => router.push('/group/create')}>
         <Text style={styles.outlineBtnText}>+ Create Group</Text>
       </TouchableOpacity>
+      <TouchableOpacity style={styles.outlineBtn} onPress={() => router.push('/group/join')}>
+        <Text style={styles.outlineBtnText}>Join with Invite Code</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.signOutBtn} onPress={() => signOut()}>
         <Text style={styles.signOutText}>Sign Out</Text>

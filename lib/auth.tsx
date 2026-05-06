@@ -2,12 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FIREBASE_API_KEY } from './firebase';
 
-type User = { uid: string; email: string; idToken: string; refreshToken: string };
+type User = { uid: string; email: string; displayName: string; idToken: string; refreshToken: string };
 type AuthContextType = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  async function signUp(email: string, password: string) {
+  async function signUp(email: string, password: string, displayName: string) {
     const res = await fetch(`${AUTH_URL}:signUp?key=${FIREBASE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,9 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    const u: User = { uid: data.localId, email: data.email, idToken: data.idToken, refreshToken: data.refreshToken };
+    const u: User = { uid: data.localId, email: data.email, displayName, idToken: data.idToken, refreshToken: data.refreshToken };
     setUser(u);
     await AsyncStorage.setItem('pact_user', JSON.stringify(u));
+    // Store display name in Firestore
+    const { setDoc, doc } = await import('firebase/firestore');
+    const { db } = await import('./firebase');
+    await setDoc(doc(db(), 'users', data.localId), { displayName, email: data.email, createdAt: new Date() });
   }
 
   async function signIn(email: string, password: string) {
@@ -50,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    const u: User = { uid: data.localId, email: data.email, idToken: data.idToken, refreshToken: data.refreshToken };
+    const u: User = { uid: data.localId, email: data.email, displayName: data.displayName || data.email.split('@')[0], idToken: data.idToken, refreshToken: data.refreshToken };
     setUser(u);
     await AsyncStorage.setItem('pact_user', JSON.stringify(u));
   }
