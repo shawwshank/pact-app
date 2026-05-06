@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ type Goal = { id: string; title: string; frequency: string; groupId: string };
 type Group = { id: string; name: string; memberIds: string[] };
 type Checkin = { userId: string; goalId: string; groupId: string; date: string; completed: boolean };
 type CheckinMap = Record<string, boolean>;
+type Nudge = { fromUserId: string; toUserId: string; fromName: string; date: string };
 
 function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,6 +40,8 @@ export default function HomeScreen() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [nudgesReceived, setNudgesReceived] = useState<Nudge[]>([]);
+  const [nudgesSent, setNudgesSent] = useState<Set<string>>(new Set());
   const weekDates = getWeekDates();
   const today = localDateStr(new Date());
 
@@ -101,6 +104,23 @@ export default function HomeScreen() {
     );
     const cSnap = await getDocs(cq);
     setCheckins(cSnap.docs.map(d => d.data() as Checkin));
+
+    // Load nudges received today
+    const nq = query(collection(db(), 'nudges'), where('toUserId', '==', user.uid), where('date', '==', today));
+    const nSnap = await getDocs(nq);
+    setNudgesReceived(nSnap.docs.map(d => d.data() as Nudge));
+  }
+
+  async function sendNudge(toUserId: string) {
+    if (!user) return;
+    await addDoc(collection(db(), 'nudges'), {
+      fromUserId: user.uid,
+      toUserId,
+      fromName: user.displayName || 'Someone',
+      date: today,
+      createdAt: new Date(),
+    });
+    setNudgesSent(prev => new Set([...prev, toUserId]));
   }
 
   async function toggleCheckin(goalId: string, completed: boolean) {
@@ -152,6 +172,15 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.accent} />}
     >
+      {/* Nudge received banner */}
+      {nudgesReceived.length > 0 && (
+        <View style={styles.nudgeBanner}>
+          <Text style={styles.nudgeText}>
+            👀 {nudgesReceived[nudgesReceived.length - 1].fromName} nudged you — have you checked in?
+          </Text>
+        </View>
+      )}
+
       {/* Today's Check-in Section */}
       {goals.length > 0 && (
         <View style={styles.checkinSection}>
@@ -199,7 +228,10 @@ export default function HomeScreen() {
                 </View>
               ))}
             </View>
-            {group.memberIds.map(memberId => (
+            {group.memberIds.map(memberId => {
+              const todayStatus = getMemberStatus(memberId, today, group.id);
+              const canNudge = memberId !== user?.uid && todayStatus === '·' && !nudgesSent.has(memberId);
+              return (
               <View key={memberId} style={styles.tableRow}>
                 <View style={styles.nameCol}>
                   <Text style={styles.memberName} numberOfLines={1}>
@@ -220,8 +252,17 @@ export default function HomeScreen() {
                     </View>
                   );
                 })}
+                {canNudge && (
+                  <TouchableOpacity style={styles.nudgeBtn} onPress={() => sendNudge(memberId)}>
+                    <Text style={styles.nudgeBtnText}>👉</Text>
+                  </TouchableOpacity>
+                )}
+                {nudgesSent.has(memberId) && memberId !== user?.uid && (
+                  <Text style={styles.nudgedLabel}>sent</Text>
+                )}
               </View>
-            ))}
+              );
+            })}
           </View>
         </View>
       ))}
@@ -289,4 +330,14 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#fff', fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold },
   secondaryBtn: { marginTop: theme.spacing.md },
   secondaryBtnText: { color: theme.colors.textSecondary, fontSize: theme.font.size.md },
+  // Nudge styles
+  nudgeBanner: {
+    backgroundColor: theme.colors.accent + '15', borderRadius: theme.radius.md,
+    padding: theme.spacing.md, marginBottom: theme.spacing.lg,
+    borderWidth: 1, borderColor: theme.colors.accent + '30',
+  },
+  nudgeText: { color: theme.colors.accentLight, fontSize: theme.font.size.sm, textAlign: 'center' },
+  nudgeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.accent + '20', alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
+  nudgeBtnText: { fontSize: 14 },
+  nudgedLabel: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginLeft: 4 },
 });

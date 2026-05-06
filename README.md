@@ -48,7 +48,12 @@ Pact replaces the shared Notes table with a purpose-built mobile app that makes 
 
 ## Screenshots
 
-*Coming soon — dark theme with purple accent, Zero-inspired UI*
+<p align="center">
+  <img src="assets/screenshots/home.png" width="200" alt="Home - Check in and group grid" />
+  <img src="assets/screenshots/leaderboard.png" width="200" alt="Leaderboard" />
+  <img src="assets/screenshots/history.png" width="200" alt="History heatmap" />
+  <img src="assets/screenshots/welcome.png" width="200" alt="Welcome screen" />
+</p>
 
 ## Running Locally
 
