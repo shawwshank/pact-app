@@ -79,7 +79,10 @@ export default function GroupsScreen() {
               </View>
             )}
             {!challenge && (
-              <Text style={styles.noChallenge}>No active challenge</Text>
+              <TouchableOpacity onPress={() => router.push(`/group/create-challenge?groupId=${group.id}`)}>
+                <Text style={styles.createChallenge}>🎯 Set a group challenge →</Text>
+                <Text style={styles.createChallengeSub}>Rally your team around a shared goal</Text>
+              </TouchableOpacity>
             )}
           </TouchableOpacity>
         );
@@ -105,6 +108,8 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: theme.colors.success, borderRadius: 4 },
   progressText: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginTop: theme.spacing.xs },
   noChallenge: { fontSize: theme.font.size.sm, color: theme.colors.textMuted, marginTop: theme.spacing.sm },
+  createChallenge: { fontSize: theme.font.size.sm, color: theme.colors.accent, fontWeight: theme.font.weight.medium, marginTop: theme.spacing.md },
+  createChallengeSub: { fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginTop: 2 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },
   emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
   emptyTitle: { fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.text },

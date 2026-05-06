@@ -179,17 +179,20 @@ export default function HomeScreen() {
   const allDoneToday = goals.length > 0 && goals.every(g => myCheckins[g.id] === true);
   const checkedInCount = goals.filter(g => myCheckins[g.id] !== undefined).length;
 
-  const firstName = user?.displayName?.split(' ')[0] || 'there';
+  const firstName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
   const hour = new Date().getHours();
+  const goalsLeft = goals.filter(g => myCheckins[g.id] === undefined).length;
   let greeting: string;
   if (allDoneToday) {
     greeting = `All done today, ${firstName} 🔥`;
   } else if (goals.length === 0) {
-    greeting = `Hey ${firstName}`;
-  } else if (hour >= 20 && checkedInCount < goals.length) {
+    greeting = `Welcome, ${firstName}`;
+  } else if (hour >= 20 && goalsLeft > 0) {
     greeting = `${firstName}, don't break your streak`;
+  } else if (goalsLeft > 0) {
+    greeting = `Hey ${firstName} — ${goalsLeft} goal${goalsLeft !== 1 ? 's' : ''} left`;
   } else {
-    greeting = `Hey ${firstName} — ${goals.length - checkedInCount} goal${goals.length - checkedInCount !== 1 ? 's' : ''} left`;
+    greeting = `Done for today, ${firstName} 👊`;
   }
 
   if (groups.length === 0) {
