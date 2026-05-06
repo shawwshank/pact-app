@@ -54,7 +54,7 @@ function RootLayoutNav() {
     } else if (user && inAuth) {
       router.replace('/(tabs)');
     }
-  }, [user, loading, segments]);
+  }, [user, loading]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

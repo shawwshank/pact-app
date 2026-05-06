@@ -8,7 +8,8 @@ type Goal = { id: string; title: string; frequency: string; groupId: string };
 type CheckinMap = Record<string, boolean>;
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function CheckInScreen() {
@@ -24,14 +25,14 @@ export default function CheckInScreen() {
 
   async function loadGoals() {
     if (!user) return;
-    const q = query(collection(db, 'goals'), where('userId', '==', user.uid), where('isActive', '==', true));
+    const q = query(collection(db(), 'goals'), where('userId', '==', user.uid), where('isActive', '==', true));
     const snap = await getDocs(q);
     const g = snap.docs.map(d => ({ id: d.id, ...d.data() } as Goal));
     setGoals(g);
 
     // Load today's check-ins
     const cq = query(
-      collection(db, 'checkins'),
+      collection(db(), 'checkins'),
       where('userId', '==', user.uid),
       where('date', '==', today),
     );
@@ -47,7 +48,7 @@ export default function CheckInScreen() {
   async function toggleCheckin(goalId: string, completed: boolean) {
     if (!user) return;
     const checkinId = `${user.uid}_${goalId}_${today}`;
-    await setDoc(doc(db, 'checkins', checkinId), {
+    await setDoc(doc(db(), 'checkins', checkinId), {
       userId: user.uid,
       goalId,
       groupId: goals.find(g => g.id === goalId)?.groupId ?? '',

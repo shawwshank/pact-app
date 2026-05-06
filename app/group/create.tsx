@@ -11,10 +11,11 @@ export default function CreateGroupScreen() {
   const [name, setName] = useState('');
 
   async function handleCreate() {
-    if (!name.trim() || !user) return;
+    if (!name.trim()) { Alert.alert('Error', 'Enter a group name'); return; }
+    if (!user) { Alert.alert('Error', 'Not signed in'); return; }
     try {
       const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const groupRef = await addDoc(collection(db, 'groups'), {
+      const groupRef = await addDoc(collection(db(), 'groups'), {
         name: name.trim(),
         createdBy: user.uid,
         inviteCode,

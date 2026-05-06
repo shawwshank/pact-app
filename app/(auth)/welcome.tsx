@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/lib/auth';
 
 export default function WelcomeScreen() {
+  const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,9 +15,9 @@ export default function WelcomeScreen() {
     }
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await signUp(email, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signIn(email, password);
       }
     } catch (e: any) {
       Alert.alert('Error', e.message);

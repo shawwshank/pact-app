@@ -1,29 +1,23 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { Platform } from 'react-native';
+import { getFirestore, Firestore } from 'firebase/firestore';
+
+export const FIREBASE_API_KEY = "AIzaSyDFzHcJl9CwC0Ze_A4EZLdWqdHTMUbi594";
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  apiKey: FIREBASE_API_KEY,
+  authDomain: "pact-app-b0d9e.firebaseapp.com",
+  projectId: "pact-app-b0d9e",
+  storageBucket: "pact-app-b0d9e.firebasestorage.app",
+  messagingSenderId: "270099033756",
+  appId: "1:270099033756:web:aaa688d1ba66466d580759",
 };
 
-const app = initializeApp(firebaseConfig);
+let _db: Firestore | null = null;
 
-let auth: ReturnType<typeof getAuth>;
-if (Platform.OS === 'web') {
-  auth = getAuth(app);
-} else {
-  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-  const { getReactNativePersistence } = require('firebase/auth');
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
+export function db(): Firestore {
+  if (!_db) {
+    const app = initializeApp(firebaseConfig);
+    _db = getFirestore(app);
+  }
+  return _db;
 }
-
-export { auth };
-export const db = getFirestore(app);

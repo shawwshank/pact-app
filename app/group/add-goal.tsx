@@ -13,9 +13,11 @@ export default function AddGoalScreen() {
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
 
   async function handleAdd() {
-    if (!title.trim() || !user || !groupId) return;
+    if (!title.trim()) { Alert.alert('Error', 'Enter a goal title'); return; }
+    if (!user) { Alert.alert('Error', 'Not signed in'); return; }
+    if (!groupId) { Alert.alert('Error', 'No group selected'); return; }
     try {
-      await addDoc(collection(db, 'goals'), {
+      await addDoc(collection(db(), 'goals'), {
         userId: user.uid,
         groupId,
         title: title.trim(),

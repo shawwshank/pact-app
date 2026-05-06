@@ -3,7 +3,7 @@ import { db } from './firebase';
 
 export async function calculateStreak(userId: string, goalId: string): Promise<number> {
   const q = query(
-    collection(db, 'checkins'),
+    collection(db(), 'checkins'),
     where('userId', '==', userId),
     where('goalId', '==', goalId),
     where('completed', '==', true),

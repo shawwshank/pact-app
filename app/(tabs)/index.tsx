@@ -6,7 +6,11 @@ import { useAuth } from '@/lib/auth';
 import { useRouter } from 'expo-router';
 
 type Group = { id: string; name: string; memberIds: string[] };
-type Checkin = { userId: string; goalId: string; date: string; completed: boolean };
+type Checkin = { userId: string; goalId: string; groupId: string; date: string; completed: boolean };
+
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function getWeekDates(): string[] {
   const now = new Date();
@@ -16,7 +20,7 @@ function getWeekDates(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   });
 }
 
@@ -28,7 +32,7 @@ export default function HomeScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const weekDates = getWeekDates();
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
 
   useEffect(() => {
     if (!user) return;
@@ -38,7 +42,7 @@ export default function HomeScreen() {
   async function loadData() {
     if (!user) return;
     // Load groups user is in
-    const gq = query(collection(db, 'groups'), where('memberIds', 'array-contains', user.uid));
+    const gq = query(collection(db(), 'groups'), where('memberIds', 'array-contains', user.uid));
     const gSnap = await getDocs(gq);
     const g = gSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
     setGroups(g);
@@ -48,7 +52,7 @@ export default function HomeScreen() {
     // Load check-ins for this week for all group members
     const allMemberIds = [...new Set(g.flatMap(gr => gr.memberIds))];
     const cq = query(
-      collection(db, 'checkins'),
+      collection(db(), 'checkins'),
       where('userId', 'in', allMemberIds.slice(0, 10)), // Firestore 'in' limit is 10
       where('date', '>=', weekDates[0]),
       where('date', '<=', weekDates[6]),
@@ -57,14 +61,12 @@ export default function HomeScreen() {
     setCheckins(cSnap.docs.map(d => d.data() as Checkin));
   }
 
-  function getMemberStatus(memberId: string, date: string): '✓' | '✗' | '·' {
-    const memberCheckins = checkins.filter(c => c.userId === memberId && c.date === date);
-    if (memberCheckins.length === 0) return date <= today ? '·' : '·';
+  function getMemberStatus(memberId: string, date: string, groupId: string): '✓' | '✗' | '·' {
+    const memberCheckins = checkins.filter(c => c.userId === memberId && c.date === date && c.groupId === groupId);
+    if (memberCheckins.length === 0) return '·';
     const allDone = memberCheckins.every(c => c.completed);
-    const anyMissed = memberCheckins.some(c => !c.completed);
     if (allDone) return '✓';
-    if (anyMissed) return '✗';
-    return '·';
+    return '✗';
   }
 
   if (groups.length === 0) {
@@ -97,7 +99,7 @@ export default function HomeScreen() {
                 {memberId === user?.uid ? 'You' : memberId.slice(0, 6)}
               </Text>
               {weekDates.map((date, i) => {
-                const status = getMemberStatus(memberId, date);
+                const status = getMemberStatus(memberId, date, group.id);
                 return (
                   <Text key={i} style={[
                     styles.dayCol,
