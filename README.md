@@ -97,8 +97,10 @@ Pact makes your commitment visible to the people whose opinion you care about.
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshots/home.png" width="200" alt="Home - Check in and group grid" />
-  <img src="assets/screenshots/history.png" width="200" alt="History heatmap" />
+  <img src="assets/screenshots/home.png" width="180" alt="Home - Check in and group grid" />
+  <img src="assets/screenshots/groups.png" width="180" alt="Groups with challenge progress" />
+  <img src="assets/screenshots/group-detail.png" width="180" alt="Group detail - leaderboard and members" />
+  <img src="assets/screenshots/history.png" width="180" alt="History heatmap and streaks" />
 </p>
 
 ## Running Locally
