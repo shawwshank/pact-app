@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function LeaderboardScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pact</Text>
-      <Text style={styles.subtitle}>Group feed will go here</Text>
+      <Text style={styles.title}>Leaderboard</Text>
+      <Text style={styles.subtitle}>Rankings and streaks will go here</Text>
     </View>
   );
 }

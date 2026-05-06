@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function CheckInScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pact</Text>
-      <Text style={styles.subtitle}>Group feed will go here</Text>
+      <Text style={styles.title}>Check In</Text>
+      <Text style={styles.subtitle}>Daily goal tracking will go here</Text>
     </View>
   );
 }

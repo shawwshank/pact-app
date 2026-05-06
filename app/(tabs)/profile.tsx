@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function ProfileScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pact</Text>
-      <Text style={styles.subtitle}>Group feed will go here</Text>
+      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.subtitle}>Goals, groups, and settings will go here</Text>
     </View>
   );
 }
