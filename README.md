@@ -2,11 +2,11 @@
 
 **A social fitness accountability app that turns shared goal tracking into a daily habit.**
 
-## The Problem
+## Problem
 
 Friend groups use shared iPhone Notes to track daily goals — but people forget to update, there's no visibility into streaks, and there's zero social reinforcement. The experience is clunky and unmotivating.
 
-## The Solution
+## Solution
 
 Pact replaces the shared Notes table with a purpose-built mobile app that makes accountability effortless, visible, and social. Users create groups, set personal goals (daily or weekly), and check in with a single tap. Everyone in the group can see each other's progress in a weekly grid — creating natural accountability through transparency.
 
