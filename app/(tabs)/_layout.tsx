@@ -33,17 +33,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="checkin"
-        options={{
-          title: 'Check In',
-          tabBarIcon: ({ color }) => <TabBarIcon name="check-circle" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="leaderboard"
         options={{
           title: 'Board',
           tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
